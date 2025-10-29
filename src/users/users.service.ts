@@ -13,28 +13,11 @@ export class UsersService {
 		return user;
 	}
 
-	async getUserWithChats(username: string): Promise<User> {
-		const user = await this.userModel.findOne({
-			where: { username }, 
-			include: {
-				model: Chat,
-				as: 'chats'
-			},
-			attributes: {
-				exclude: ['password', 'publicKey']
-			}
-		});
-		if(!user) {
-			throw new NotFoundException('такой пользователь не найден');
-		}
-		return user;
-	}
-
 	async getUserById(userId: string): Promise<User> {
 		const user = await this.userModel.findOne({
 			where: { id: userId },
 			attributes: {
-				exclude: ['password', 'publicKey']
+				exclude: ['password', 'publicKey', 'status']
 			}
 		});
 		if(!user) {

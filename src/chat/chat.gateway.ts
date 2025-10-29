@@ -52,15 +52,22 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
 
     for(const chat of userChats) {
       client.join(chat.id);
+      client.to(chat.id).emit('user_status', { userId: user.id, status: 'online' });
     }
 
     this.logger.log(`User ${client.id} joined ${userChats.length} rooms`);
-    client.emit('joined_chats', userChats);
+    client.emit('get_chats', userChats);
   }
 
   async handleDisconnect(client: Socket) {
     const user = client.data.user;
     if(user?.id) {
+      const userChats = await this.chatService.getUserChats(user.id);
+
+      for(const chat of userChats) {
+        client.to(chat.id).emit('user_status', { userId: user.id, status: 'offline' });
+      }
+
       this.userSockets.delete(user.id);
       this.logger.log(`Client disconnected: ${client.id}`);
     }
@@ -74,7 +81,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     const createMsgParams = {...data, senderId: user.id};
     const message = await this.chatService.saveMessage(createMsgParams);
 
-    client.to(data.chatId).emit('new_message', message.toJSON());
+    this.server.to(data.chatId).emit('new_message', message.toJSON());
   }
 
   @SubscribeMessage('get_messages')
@@ -83,13 +90,13 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     const user = client.data.user;
     const { chatId, limit, page } = data;
 
-    await this.chatService.markMessagesAsRead(user.id, data.chatId);
+    await this.chatService.markMessagesAsRead(data.chatId, user.id);
 
     const messages = await this.chatService.getMessagesByChatId(chatId, limit, page);
 
     client.to(data.chatId).emit('messages_read', { chatId: data.chatId });
 
-    client.emit('accept_messages', messages);
+    client.emit('get_messages', messages);
   }
 
   @SubscribeMessage('create_chat')
@@ -109,5 +116,16 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     }
 
     client.emit('new_chat', chat);
+  }
+
+  @SubscribeMessage('get_online_users')
+  async handleGetOnlineUsers(@ConnectedSocket() client: Socket, @MessageBody() data: { chatId: string }) {
+    const chatId = data.chatId;
+    const chatParticipants = await this.chatService.getChatParticipants(chatId); // верни массив [{ id: string }]
+    const online = chatParticipants
+      .map((u) => u.id)
+      .filter((id) => this.userSockets.has(id));
+
+    client.emit('online_users', { chatId, online });
   }
 }

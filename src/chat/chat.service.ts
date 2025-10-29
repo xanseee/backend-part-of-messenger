@@ -6,7 +6,7 @@ import { ChatParticipant } from './models/chat-participant.model'
 import { CreateMessageDto } from './dto/message.dto'
 import { User } from 'src/users/models/users.model'
 import { CreateChatDto } from './dto/chat.dto'
-import { Op } from 'sequelize'
+import { col, Op } from 'sequelize'
 
 @Injectable()
 export class ChatService {
@@ -20,9 +20,51 @@ export class ChatService {
 	async getUserChats(userId: string) {
 		const participations: ChatParticipant[] = await this.chatParticipantModel.findAll({
 			where: { userId },
-			include: [{model: Chat}]
+			include: [{
+				model: Chat,
+				include: [{
+					model: Message,
+					as: 'messages',
+					required: false,
+					separate: true,
+					order: [['createdAt', 'DESC']],
+					limit: 1
+				}, {
+					model: User, 
+					as: 'participants',
+            	through: { attributes: [] },
+					attributes: ['id', 'username'], // указываем явно
+				}]
+			}]
 		});
-		return participations.map(p => p.toJSON().chat);
+
+		const chats = await Promise.all(
+			participations.map(async (p) => {
+				const chat = p.toJSON().chat;
+
+				const unreadCount = await this.messageModel.count({
+					where: {
+						chatId: chat.id,
+						status: 'sent',
+						senderId: { [Op.ne]: userId },
+					}
+				});
+
+				return {...chat, unreadCount};
+			})
+		);
+		
+		return chats;
+	}
+
+	async getChatParticipants(chatId: string) {
+  		const participants = await this.chatParticipantModel.findAll({
+  		  where: { chatId },
+  		  attributes: ['userId'],
+  		  raw: true,
+  		});
+
+  		return participants.map(p => ({ id: p.userId }));
 	}
 
 	async isInChat(userId: string, chatId: string): Promise<boolean> {
@@ -50,10 +92,10 @@ export class ChatService {
 				{
 					model: User, 
 					as: 'sender',
-					attributes: ['id']
+					attributes: []
 				}
 			],
-			attributes: ['id', 'content', 'messageType', 'createdAt']
+			attributes: ['id', 'content', 'messageType', 'createdAt', 'updatedAt', [col('sender.id'), 'senderId']]
 		});
 
 		return messages;

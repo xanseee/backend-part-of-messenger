@@ -12,11 +12,11 @@ export class IsInChat implements CanActivate {
 			const client: Socket = context.switchToWs().getClient();
 			const data = context.switchToWs().getData();
 			const user = client.data.user;
-
+			
 			const isInChat = await this.chatService.isInChat(user.id, data.chatId);
-    		if(!isInChat) {
-    		  throw new WsException('You are not a participant of this chat');
-    		}
+			if(!isInChat) {
+				throw new WsException('You are not a participant of this chat');
+			}
 			return true;
 		} catch {
 			throw new WsException('You are not a participant of this chat');

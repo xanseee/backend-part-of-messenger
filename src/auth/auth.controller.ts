@@ -35,7 +35,6 @@ export class AuthController {
    async refresh(@Req() request: Request) {
       const { refreshToken } = request.cookies;
       const userData = await this.authService.refresh(refreshToken);
-      console.log(userData);
       return userData;
    }
 }

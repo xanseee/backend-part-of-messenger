@@ -25,7 +25,7 @@ export class AuthService {
 		const tokens = await this.tokenService.generateToken(payload);
 		await this.tokenService.saveToken(user.id, tokens.refreshToken);
 		
-		const returnedUser = await this.returnUserWithChats(user.username);
+		const returnedUser = await this.userService.getUserById(user.id);
 		return { ...tokens, user: returnedUser };
 	}
 
@@ -36,7 +36,7 @@ export class AuthService {
 		const tokens = await this.tokenService.generateToken(payload);
 		await this.tokenService.saveToken(user.id, tokens.refreshToken);
 
-		const returnedUser = await this.returnUserWithChats(user.username);
+		const returnedUser = await this.userService.getUserById(user.id);
 		return { ...tokens, user: returnedUser };
 	}
 
@@ -61,7 +61,7 @@ export class AuthService {
 		const tokens = await this.tokenService.generateToken(payload);
 		await this.tokenService.saveToken(user.id, tokens.refreshToken);
 
-		const returnedUser = await this.returnUserWithChats(user.username);
+		const returnedUser = await this.userService.getUserById(user.id);
 		return { ...tokens, user: returnedUser};
 	}
 
@@ -76,10 +76,5 @@ export class AuthService {
 			return user;
 		}
 		throw new UnauthorizedException({message: "Некорректный пароль или имя пользователя"});
-	}
-
-	private async returnUserWithChats(username: string) {
-		const user = await this.userService.getUserWithChats(username);
-		return user;
 	}
 }
